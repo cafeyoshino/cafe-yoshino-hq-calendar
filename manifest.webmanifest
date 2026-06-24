@@ -1,0 +1,17 @@
+{
+  "name": "カフェヨシノ 本社カレンダー",
+  "short_name": "本社カレンダー",
+  "start_url": "./cafe-yoshino-calendar-ui.html",
+  "display": "standalone",
+  "background_color": "#f7f8f5",
+  "theme_color": "#2f6b4f",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
