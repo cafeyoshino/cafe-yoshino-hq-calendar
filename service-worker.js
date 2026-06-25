@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cafe-yoshino-calendar-v11';
+const CACHE_NAME = 'cafe-yoshino-calendar-v12';
 const APP_FILES = [
   './',
   './cafe-yoshino-calendar-ui.html',
