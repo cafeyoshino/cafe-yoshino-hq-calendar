@@ -139,6 +139,8 @@
 
     .empty { color: var(--muted); padding: 22px; text-align: center; font-weight: 700; }
     .hidden { display: none; }
+    .admin-only { display: none !important; }
+    body.admin-mode .admin-only { display: inline-grid !important; }
 
     .day-layout { display: grid; grid-template-columns: 86px 1fr; }
     .hours { background: #fafbf8; border-right: 1px solid var(--line); }
@@ -330,8 +332,8 @@
 
         <div class="status-row">
           <div class="sync-state" id="syncState">予定を読み込み中...</div>
-          <button class="text-button" type="button" id="configButton">設定</button>
-          <button class="text-button" type="button" id="refreshButton">更新</button>
+          <button class="text-button admin-only" type="button" id="configButton">設定</button>
+          <button class="text-button admin-only" type="button" id="refreshButton">更新</button>
         </div>
       </div>
     </header>
@@ -398,6 +400,7 @@
     const APP_TODAY = startOfDay(new Date());
     const FILE_CONFIG = window.CAFE_YOSHINO_CONFIG || {};
     const DEFAULT_MEMBER_MAP = FILE_CONFIG.memberMap || '';
+    const IS_ADMIN = new URLSearchParams(location.search).get('admin') === '1';
 
     const state = {
       view: 'day',
@@ -426,6 +429,7 @@
     function initialize() {
       state.events = [...demoEvents];
       document.getElementById('googleCalendarLink').href = state.config.googleCalendarUrl || 'https://calendar.google.com/';
+      document.body.classList.toggle('admin-mode', IS_ADMIN);
       renderFilters();
       bindActions();
       applyConfigToForm();
@@ -557,7 +561,8 @@
         title: item.title || '予定',
         start,
         end,
-        location: item.location || ''
+        location: item.location || '',
+        allDay: Boolean(item.allDay)
       };
     }
 
@@ -640,7 +645,7 @@
     function dayEventHtml(event) {
       const startHour = 9;
       const minutesFromStart = Math.max(0, (event.start.getHours() - startHour) * 60 + event.start.getMinutes());
-      const duration = Math.max(42, (event.end - event.start) / 60000);
+      const duration = event.allDay ? 60 : Math.max(42, (event.end - event.start) / 60000);
       const top = Math.round(minutesFromStart / 60 * 64 + 6);
       const height = Math.round(duration / 60 * 64 - 6);
       return listEventHtml(event, `style="top:${top}px;height:${height}px"`);
@@ -650,7 +655,7 @@
       const member = memberFor(event.assignee);
       return `
         <article class="event ${member.key}" ${attrs}>
-          <div class="who"><span class="dot"></span>${escapeHtml(event.assignee)}　${formatTime(event.start)}-${formatTime(event.end)}</div>
+          <div class="who"><span class="dot"></span>${escapeHtml(event.assignee)}　${event.allDay ? '終日' : `${formatTime(event.start)}-${formatTime(event.end)}`}</div>
           <strong>${escapeHtml(event.title)}</strong>
           ${event.location ? `<small>${escapeHtml(event.location)}</small>` : ''}
         </article>
