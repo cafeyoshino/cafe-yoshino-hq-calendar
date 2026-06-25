@@ -722,9 +722,7 @@
     }
 
     function renderMonth() {
-      const first = new Date(state.cursor.getFullYear(), state.cursor.getMonth(), 1);
-      const gridStart = addDays(first, -first.getDay());
-      const days = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
+      const days = monthGridDays();
       monthView.innerHTML = `
         <div class="month-grid">
           ${WEEKDAYS.map((day) => `<div class="weekday">${day}</div>`).join('')}
@@ -763,7 +761,7 @@
     }
 
     function monthCellHtml(day) {
-      const events = filteredEvents().filter((event) => isSameDate(event.start, day)).sort(sortByStart);
+      const events = filteredEvents().filter((event) => eventOccursOnDay(event, day)).sort(sortByStart);
       const shown = events.slice(0, 2);
       const outside = day.getMonth() !== state.cursor.getMonth();
       return `
@@ -846,8 +844,14 @@
         const start = weekStart(state.cursor);
         return { start, end: addDays(start, 7) };
       }
-      const start = new Date(state.cursor.getFullYear(), state.cursor.getMonth(), 1);
-      return { start, end: new Date(state.cursor.getFullYear(), state.cursor.getMonth() + 1, 1) };
+      const days = monthGridDays();
+      return { start: days[0], end: addDays(days[days.length - 1], 1) };
+    }
+
+    function monthGridDays() {
+      const first = new Date(state.cursor.getFullYear(), state.cursor.getMonth(), 1);
+      const gridStart = addDays(first, -first.getDay());
+      return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
     }
 
     function filteredEvents() {
@@ -905,6 +909,11 @@
     function startOfDay(date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()); }
     function weekStart(date) { return addDays(startOfDay(date), -date.getDay()); }
     function isSameDate(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+    function eventOccursOnDay(event, day) {
+      const dayStart = startOfDay(day);
+      const dayEnd = addDays(dayStart, 1);
+      return event.start < dayEnd && event.end > dayStart;
+    }
     function isToday(date) { return isSameDate(date, new Date()); }
     function sortByStart(a, b) { return a.start - b.start; }
     function formatTime(date) { return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
