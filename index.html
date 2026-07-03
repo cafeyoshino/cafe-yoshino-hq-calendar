@@ -529,6 +529,8 @@
     ];
 
     const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+    const DAY_HOUR_START = 9;
+    const DAY_HOUR_COUNT = 9;
     const CONFIG_KEY = 'cafeYoshinoCalendarConfigV2';
     const AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
     const APP_TODAY = startOfDay(new Date());
@@ -734,9 +736,6 @@
       renderWeek();
       renderMonth();
     }
-
-    const DAY_HOUR_START = 9;
-    const DAY_HOUR_COUNT = 9;
 
     function renderDay() {
       const dayEvents = filteredEvents().filter((event) => isSameDate(event.start, state.cursor));
@@ -1061,3 +1060,4 @@
   </script>
 </body>
 </html>
+ 
