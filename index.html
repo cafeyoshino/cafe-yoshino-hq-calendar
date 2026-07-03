@@ -274,10 +274,9 @@
     .imanishi .dot { background: #5e7d36; }
     .unknown .dot { background: #879083; }
 
-    .week-grid-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .week-grid { min-width: 760px; }
-    .week-grid-header { display: grid; grid-template-columns: 86px repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
-    .week-grid-corner { border-right: 1px solid var(--line); background: #fffafd; }
+    .week-list-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .week-list-grid { min-width: 700px; }
+    .week-list-header { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
     .week-grid-daylabel {
       text-align: center;
       padding: 8px 4px;
@@ -293,41 +292,30 @@
     .week-grid-daylabel { cursor: pointer; }
     .week-grid-daylabel:hover { background: #fdeaf3; }
 
-    .event.chip {
-      display: block;
-      padding: 2px 5px;
-      font-size: 11px;
-      font-weight: 700;
-      line-height: 1.35;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      cursor: default;
-    }
-
-    .week-grid-allday { display: grid; grid-template-columns: 86px repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
-    .week-grid-allday-label {
-      padding: 6px 8px;
-      font-size: 11px;
-      color: var(--muted);
-      font-weight: 800;
+    .week-list-body { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: start; }
+    .week-list-col {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding: 8px 6px;
       border-right: 1px solid var(--line);
-      background: #fffafd;
-    }
-    .week-grid-allday-col {
-      padding: 6px;
-      display: grid;
-      gap: 4px;
-      align-content: start;
-      border-right: 1px solid var(--line);
+      min-height: 60px;
       min-width: 0;
     }
-    .week-grid-allday-col:last-child { border-right: 0; }
+    .week-list-col:last-child { border-right: 0; }
+    .week-list-empty { color: var(--muted); font-size: 11px; text-align: center; padding: 6px 0; }
 
-    .week-grid-body { display: grid; grid-template-columns: 86px 1fr; }
-    .week-grid-columns { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); position: relative; }
-    .week-grid-col { position: relative; padding: 0 4px; box-sizing: border-box; border-right: 1px solid var(--line); min-width: 0; }
-    .week-grid-col:last-child { border-right: 0; }
+    .week-list-item {
+      border-left: 4px solid var(--brand);
+      background: #f3f8f4;
+      border-radius: 6px;
+      padding: 4px 6px;
+      min-width: 0;
+    }
+    .week-list-time { font-size: 10px; font-weight: 800; color: var(--muted); line-height: 1.3; }
+    .week-list-main { display: flex; gap: 4px; align-items: baseline; font-size: 11px; line-height: 1.35; overflow: hidden; }
+    .week-list-name { font-weight: 800; flex: 0 0 auto; white-space: nowrap; color: var(--text); }
+    .week-list-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); flex: 1 1 auto; min-width: 0; }
 
     .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
     .weekday {
@@ -429,9 +417,8 @@
       .period { min-width: 0; flex: 1; text-align: center; font-size: 15px; }
       .day-layout { grid-template-columns: 58px 1fr; }
       .hour { padding: 8px 5px; }
-      .week-grid-header, .week-grid-allday { grid-template-columns: 58px repeat(7, minmax(0, 1fr)); }
-      .week-grid-body { grid-template-columns: 58px 1fr; }
-      .week-grid { min-width: 620px; }
+      .week-list-grid { min-width: 560px; }
+      .week-list-col { padding: 6px 4px; }
       .date-cell { min-height: 78px; padding: 4px; }
       .mini-event { padding: 3px 4px; font-size: 10px; }
       .sync-state { flex: 1; }
@@ -545,9 +532,6 @@
     const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
     const DAY_HOUR_START = 9;
     const DAY_HOUR_COUNT = 9;
-    const WEEK_LABEL_WIDTH = 64;
-    const WEEK_DAY_BASE_WIDTH = 96;
-    const WEEK_EVENT_COL_WIDTH = 56;
     const CONFIG_KEY = 'cafeYoshinoCalendarConfigV2';
     const AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
     const APP_TODAY = startOfDay(new Date());
@@ -776,26 +760,16 @@
     function renderWeek() {
       const start = weekStart(state.cursor);
       const days = Array.from({ length: 7 }, (_, index) => addDays(start, index));
-      const hours = Array.from({ length: DAY_HOUR_COUNT }, (_, index) => DAY_HOUR_START + index);
 
       const perDay = days.map((day) => {
-        const dayEvents = filteredEvents().filter((event) => isSameDate(event.start, day));
-        const allDayEvents = dayEvents.filter((event) => event.allDay).sort(sortByStart);
-        const timedEvents = dayEvents.filter((event) => !event.allDay).sort(sortByStart);
-        return { day, allDayEvents, timedLayout: layoutOverlaps(timedEvents) };
+        const dayEvents = filteredEvents().filter((event) => isSameDate(event.start, day)).sort(sortByStart);
+        return { day, dayEvents };
       });
 
-      const hasAllDay = perDay.some((entry) => entry.allDayEvents.length);
-      const overlapCounts = perDay.flatMap((entry) => entry.timedLayout.map((item) => item.cols));
-      const maxCols = overlapCounts.length ? Math.max(...overlapCounts) : 1;
-      const dayColWidth = Math.max(WEEK_DAY_BASE_WIDTH, maxCols * WEEK_EVENT_COL_WIDTH);
-      const gridWidth = WEEK_LABEL_WIDTH + dayColWidth * 7;
-
       weekView.innerHTML = `
-        <div class="week-grid-scroll">
-          <div class="week-grid" style="min-width:${gridWidth}px">
-            <div class="week-grid-header">
-              <div class="week-grid-corner"></div>
+        <div class="week-list-scroll">
+          <div class="week-list-grid">
+            <div class="week-list-header">
               ${perDay.map(({ day }) => `
                 <div class="week-grid-daylabel${isToday(day) ? ' today' : ''}" data-date="${toDateInput(day)}" role="button" tabindex="0">
                   <span class="wd">${WEEKDAYS[day.getDay()]}</span>
@@ -803,24 +777,12 @@
                 </div>
               `).join('')}
             </div>
-            ${hasAllDay ? `
-              <div class="week-grid-allday">
-                <div class="week-grid-allday-label">終日</div>
-                ${perDay.map(({ allDayEvents }) => `
-                  <div class="week-grid-allday-col">${allDayEvents.map((event) => listEventHtml(event)).join('')}</div>
-                `).join('')}
-              </div>
-            ` : ''}
-            <div class="week-grid-body">
-              <div class="hours">${hours.map((hour) => `<div class="hour">${hour}:00</div>`).join('')}</div>
-              <div class="week-grid-columns">
-                ${perDay.map(({ timedLayout }) => `
-                  <div class="week-grid-col">
-                    ${hours.map(() => '<div class="slot"></div>').join('')}
-                    ${timedLayout.map((entry) => weekEventChipHtml(entry, DAY_HOUR_START)).join('')}
-                  </div>
-                `).join('')}
-              </div>
+            <div class="week-list-body">
+              ${perDay.map(({ dayEvents }) => `
+                <div class="week-list-col">
+                  ${dayEvents.length ? dayEvents.map((event) => weekListItemHtml(event)).join('') : '<div class="week-list-empty">-</div>'}
+                </div>
+              `).join('')}
             </div>
           </div>
         </div>
@@ -901,16 +863,19 @@
       return listEventHtml(entry.event, `style="${eventPositionStyle(entry, hourStart)}"`);
     }
 
-    function weekEventChipHtml(entry, hourStart) {
-      const { event, cols } = entry;
-      const style = eventPositionStyle(entry, hourStart);
+    function weekListItemHtml(event) {
       const member = memberFor(event.assignee);
-      const timeLabel = event.allDay ? '終日' : `${formatTime(event.start)}-${formatTime(event.end)}`;
-      const label = cols > 2
-        ? escapeHtml(event.assignee)
-        : `${escapeHtml(event.assignee)} ${event.allDay ? '終日' : formatTime(event.start)}`;
-      const fullInfo = `${event.assignee} ${timeLabel} ${event.title}`;
-      return `<article class="event chip ${member.key}" style="${style}" title="${escapeHtml(fullInfo)}">${label}</article>`;
+      const timeLabel = event.allDay ? '終日' : formatTime(event.start);
+      const fullInfo = `${event.assignee} ${event.allDay ? '終日' : `${formatTime(event.start)}-${formatTime(event.end)}`} ${event.title}`;
+      return `
+        <div class="week-list-item ${member.key}" title="${escapeHtml(fullInfo)}">
+          <div class="week-list-time">${escapeHtml(timeLabel)}</div>
+          <div class="week-list-main">
+            <span class="week-list-name">${escapeHtml(event.assignee)}</span>
+            <span class="week-list-title">${escapeHtml(event.title)}</span>
+          </div>
+        </div>
+      `;
     }
 
     function renderMonth() {
