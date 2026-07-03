@@ -215,7 +215,17 @@
     .hours { background: #fffafd; border-right: 1px solid var(--line); }
     .hour, .slot { min-height: 64px; border-bottom: 1px solid #edf0e8; }
     .hour { color: var(--muted); font-size: 12px; padding: 8px; text-align: right; }
-    .timeline { position: relative; min-height: 576px; }
+    .timeline { position: relative; min-height: 576px; padding: 0 8px; box-sizing: border-box; }
+
+    .all-day-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fffafd;
+    }
+    .all-day-row .event { flex: 1 1 220px; max-width: 320px; }
 
     .event {
       display: grid;
@@ -228,7 +238,7 @@
       min-width: 0;
     }
 
-    .timeline .event { position: absolute; left: 8px; right: 8px; }
+    .timeline .event, .week-grid-col .event { position: absolute; left: 0; right: 0; }
 
     .event .who {
       display: flex;
@@ -264,13 +274,46 @@
     .imanishi .dot { background: #5e7d36; }
     .unknown .dot { background: #879083; }
 
-    .week-list { display: grid; }
-    .week-day { display: grid; grid-template-columns: 86px 1fr; border-bottom: 1px solid var(--line); min-height: 104px; }
-    .week-day:last-child { border-bottom: 0; }
-    .week-date { background: #fffafd; border-right: 1px solid var(--line); padding: 12px 8px; text-align: center; }
-    .week-date b { display: block; font-size: 22px; line-height: 1; }
-    .week-date span { color: var(--muted); font-size: 12px; font-weight: 750; }
-    .week-events { display: grid; gap: 9px; padding: 10px; align-content: start; }
+    .week-grid-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .week-grid { min-width: 760px; }
+    .week-grid-header { display: grid; grid-template-columns: 86px repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+    .week-grid-corner { border-right: 1px solid var(--line); background: #fffafd; }
+    .week-grid-daylabel {
+      text-align: center;
+      padding: 8px 4px;
+      border-right: 1px solid var(--line);
+      color: var(--muted);
+      font-weight: 750;
+      font-size: 12px;
+    }
+    .week-grid-daylabel:last-child { border-right: 0; }
+    .week-grid-daylabel .dnum { display: block; font-size: 18px; font-weight: 850; color: var(--text); line-height: 1.3; }
+    .week-grid-daylabel.today { background: #fff1f7; }
+    .week-grid-daylabel.today .dnum { color: var(--brand-dark); }
+
+    .week-grid-allday { display: grid; grid-template-columns: 86px repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+    .week-grid-allday-label {
+      padding: 6px 8px;
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      border-right: 1px solid var(--line);
+      background: #fffafd;
+    }
+    .week-grid-allday-col {
+      padding: 6px;
+      display: grid;
+      gap: 4px;
+      align-content: start;
+      border-right: 1px solid var(--line);
+      min-width: 0;
+    }
+    .week-grid-allday-col:last-child { border-right: 0; }
+
+    .week-grid-body { display: grid; grid-template-columns: 86px 1fr; }
+    .week-grid-columns { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); position: relative; }
+    .week-grid-col { position: relative; padding: 0 4px; box-sizing: border-box; border-right: 1px solid var(--line); min-width: 0; }
+    .week-grid-col:last-child { border-right: 0; }
 
     .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
     .weekday {
@@ -372,7 +415,9 @@
       .period { min-width: 0; flex: 1; text-align: center; font-size: 15px; }
       .day-layout { grid-template-columns: 58px 1fr; }
       .hour { padding: 8px 5px; }
-      .week-day { grid-template-columns: 58px 1fr; }
+      .week-grid-header, .week-grid-allday { grid-template-columns: 58px repeat(7, minmax(0, 1fr)); }
+      .week-grid-body { grid-template-columns: 58px 1fr; }
+      .week-grid { min-width: 620px; }
       .date-cell { min-height: 78px; padding: 4px; }
       .mini-event { padding: 3px 4px; font-size: 10px; }
       .sync-state { flex: 1; }
@@ -690,16 +735,23 @@
       renderMonth();
     }
 
+    const DAY_HOUR_START = 9;
+    const DAY_HOUR_COUNT = 9;
+
     function renderDay() {
-      const events = filteredEvents().filter((event) => isSameDate(event.start, state.cursor)).sort(sortByStart);
-      const hours = Array.from({ length: 9 }, (_, index) => 9 + index);
+      const dayEvents = filteredEvents().filter((event) => isSameDate(event.start, state.cursor));
+      const allDayEvents = dayEvents.filter((event) => event.allDay).sort(sortByStart);
+      const timedEvents = dayEvents.filter((event) => !event.allDay).sort(sortByStart);
+      const hours = Array.from({ length: DAY_HOUR_COUNT }, (_, index) => DAY_HOUR_START + index);
+      const layout = layoutOverlaps(timedEvents);
       dayView.innerHTML = `
+        ${allDayEvents.length ? `<div class="all-day-row">${allDayEvents.map((event) => listEventHtml(event)).join('')}</div>` : ''}
         <div class="day-layout">
           <div class="hours">${hours.map((hour) => `<div class="hour">${hour}:00</div>`).join('')}</div>
           <div class="timeline">
             ${hours.map(() => '<div class="slot"></div>').join('')}
-            ${events.map(dayEventHtml).join('')}
-            ${events.length ? '' : '<div class="empty">この日の予定はありません</div>'}
+            ${layout.map((entry) => positionedEventHtml(entry, DAY_HOUR_START)).join('')}
+            ${dayEvents.length ? '' : '<div class="empty">この日の予定はありません</div>'}
           </div>
         </div>
       `;
@@ -708,17 +760,111 @@
     function renderWeek() {
       const start = weekStart(state.cursor);
       const days = Array.from({ length: 7 }, (_, index) => addDays(start, index));
-      weekView.innerHTML = `<div class="week-list">${days.map((day) => {
-        const events = filteredEvents().filter((event) => isSameDate(event.start, day)).sort(sortByStart);
-        return `
-          <div class="week-day">
-            <div class="week-date"><b>${day.getDate()}</b><span>${WEEKDAYS[day.getDay()]}${isToday(day) ? ' 今日' : ''}</span></div>
-            <div class="week-events">
-              ${events.length ? events.map((event) => listEventHtml(event)).join('') : '<div class="empty">予定なし</div>'}
+      const hours = Array.from({ length: DAY_HOUR_COUNT }, (_, index) => DAY_HOUR_START + index);
+
+      const perDay = days.map((day) => {
+        const dayEvents = filteredEvents().filter((event) => isSameDate(event.start, day));
+        const allDayEvents = dayEvents.filter((event) => event.allDay).sort(sortByStart);
+        const timedEvents = dayEvents.filter((event) => !event.allDay).sort(sortByStart);
+        return { day, allDayEvents, timedLayout: layoutOverlaps(timedEvents) };
+      });
+
+      const hasAllDay = perDay.some((entry) => entry.allDayEvents.length);
+
+      weekView.innerHTML = `
+        <div class="week-grid-scroll">
+          <div class="week-grid">
+            <div class="week-grid-header">
+              <div class="week-grid-corner"></div>
+              ${perDay.map(({ day }) => `
+                <div class="week-grid-daylabel${isToday(day) ? ' today' : ''}">
+                  <span class="wd">${WEEKDAYS[day.getDay()]}</span>
+                  <span class="dnum">${day.getDate()}</span>
+                </div>
+              `).join('')}
+            </div>
+            ${hasAllDay ? `
+              <div class="week-grid-allday">
+                <div class="week-grid-allday-label">終日</div>
+                ${perDay.map(({ allDayEvents }) => `
+                  <div class="week-grid-allday-col">${allDayEvents.map((event) => listEventHtml(event)).join('')}</div>
+                `).join('')}
+              </div>
+            ` : ''}
+            <div class="week-grid-body">
+              <div class="hours">${hours.map((hour) => `<div class="hour">${hour}:00</div>`).join('')}</div>
+              <div class="week-grid-columns">
+                ${perDay.map(({ timedLayout }) => `
+                  <div class="week-grid-col">
+                    ${hours.map(() => '<div class="slot"></div>').join('')}
+                    ${timedLayout.map((entry) => positionedEventHtml(entry, DAY_HOUR_START)).join('')}
+                  </div>
+                `).join('')}
+              </div>
             </div>
           </div>
-        `;
-      }).join('')}</div>`;
+        </div>
+      `;
+    }
+
+    function layoutOverlaps(events) {
+      const sorted = [...events].sort((a, b) => a.start - b.start || a.end - b.end);
+      const results = [];
+      let cluster = [];
+      let clusterEnd = null;
+
+      function flushCluster() {
+        if (!cluster.length) return;
+        const colEnds = [];
+        const clusterResults = [];
+        cluster.forEach((event) => {
+          let col = colEnds.findIndex((end) => end <= event.start);
+          if (col === -1) {
+            col = colEnds.length;
+            colEnds.push(event.end);
+          } else {
+            colEnds[col] = event.end;
+          }
+          clusterResults.push({ event, col, cols: 0 });
+        });
+        const totalCols = colEnds.length;
+        clusterResults.forEach((entry) => { entry.cols = totalCols; });
+        results.push(...clusterResults);
+        cluster = [];
+        clusterEnd = null;
+      }
+
+      sorted.forEach((event) => {
+        if (!cluster.length) {
+          cluster.push(event);
+          clusterEnd = event.end;
+        } else if (event.start < clusterEnd) {
+          cluster.push(event);
+          if (event.end > clusterEnd) clusterEnd = event.end;
+        } else {
+          flushCluster();
+          cluster.push(event);
+          clusterEnd = event.end;
+        }
+      });
+      flushCluster();
+
+      return results;
+    }
+
+    function positionedEventHtml(entry, hourStart) {
+      const { event, col, cols } = entry;
+      const minutesFromStart = Math.max(0, (event.start.getHours() - hourStart) * 60 + event.start.getMinutes());
+      const duration = event.allDay ? 60 : Math.max(42, (event.end - event.start) / 60000);
+      const top = Math.round(minutesFromStart / 60 * 64 + 6);
+      const height = Math.round(duration / 60 * 64 - 6);
+      let style = `top:${top}px;height:${height}px;`;
+      if (cols > 1) {
+        const gap = 4;
+        const widthPct = 100 / cols;
+        style += `left:calc(${col * widthPct}% + ${gap / 2}px);width:calc(${widthPct}% - ${gap}px);`;
+      }
+      return listEventHtml(event, `style="${style}"`);
     }
 
     function renderMonth() {
@@ -738,15 +884,6 @@
           refreshEvents({ silent: true });
         });
       });
-    }
-
-    function dayEventHtml(event) {
-      const startHour = 9;
-      const minutesFromStart = Math.max(0, (event.start.getHours() - startHour) * 60 + event.start.getMinutes());
-      const duration = event.allDay ? 60 : Math.max(42, (event.end - event.start) / 60000);
-      const top = Math.round(minutesFromStart / 60 * 64 + 6);
-      const height = Math.round(duration / 60 * 64 - 6);
-      return listEventHtml(event, `style="top:${top}px;height:${height}px"`);
     }
 
     function listEventHtml(event, attrs = '') {
