@@ -290,6 +290,20 @@
     .week-grid-daylabel .dnum { display: block; font-size: 18px; font-weight: 850; color: var(--text); line-height: 1.3; }
     .week-grid-daylabel.today { background: #fff1f7; }
     .week-grid-daylabel.today .dnum { color: var(--brand-dark); }
+    .week-grid-daylabel { cursor: pointer; }
+    .week-grid-daylabel:hover { background: #fdeaf3; }
+
+    .event.chip {
+      display: block;
+      padding: 2px 5px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: default;
+    }
 
     .week-grid-allday { display: grid; grid-template-columns: 86px repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
     .week-grid-allday-label {
@@ -531,6 +545,9 @@
     const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
     const DAY_HOUR_START = 9;
     const DAY_HOUR_COUNT = 9;
+    const WEEK_LABEL_WIDTH = 64;
+    const WEEK_DAY_BASE_WIDTH = 96;
+    const WEEK_EVENT_COL_WIDTH = 56;
     const CONFIG_KEY = 'cafeYoshinoCalendarConfigV2';
     const AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
     const APP_TODAY = startOfDay(new Date());
@@ -769,14 +786,18 @@
       });
 
       const hasAllDay = perDay.some((entry) => entry.allDayEvents.length);
+      const overlapCounts = perDay.flatMap((entry) => entry.timedLayout.map((item) => item.cols));
+      const maxCols = overlapCounts.length ? Math.max(...overlapCounts) : 1;
+      const dayColWidth = Math.max(WEEK_DAY_BASE_WIDTH, maxCols * WEEK_EVENT_COL_WIDTH);
+      const gridWidth = WEEK_LABEL_WIDTH + dayColWidth * 7;
 
       weekView.innerHTML = `
         <div class="week-grid-scroll">
-          <div class="week-grid">
+          <div class="week-grid" style="min-width:${gridWidth}px">
             <div class="week-grid-header">
               <div class="week-grid-corner"></div>
               ${perDay.map(({ day }) => `
-                <div class="week-grid-daylabel${isToday(day) ? ' today' : ''}">
+                <div class="week-grid-daylabel${isToday(day) ? ' today' : ''}" data-date="${toDateInput(day)}" role="button" tabindex="0">
                   <span class="wd">${WEEKDAYS[day.getDay()]}</span>
                   <span class="dnum">${day.getDate()}</span>
                 </div>
@@ -796,7 +817,7 @@
                 ${perDay.map(({ timedLayout }) => `
                   <div class="week-grid-col">
                     ${hours.map(() => '<div class="slot"></div>').join('')}
-                    ${timedLayout.map((entry) => positionedEventHtml(entry, DAY_HOUR_START)).join('')}
+                    ${timedLayout.map((entry) => weekEventChipHtml(entry, DAY_HOUR_START)).join('')}
                   </div>
                 `).join('')}
               </div>
@@ -804,6 +825,16 @@
           </div>
         </div>
       `;
+
+      weekView.querySelectorAll('.week-grid-daylabel').forEach((label) => {
+        label.addEventListener('click', () => {
+          state.cursor = parseDate(label.dataset.date);
+          state.view = 'day';
+          document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === 'day'));
+          render();
+          refreshEvents({ silent: true });
+        });
+      });
     }
 
     function layoutOverlaps(events) {
@@ -851,7 +882,7 @@
       return results;
     }
 
-    function positionedEventHtml(entry, hourStart) {
+    function eventPositionStyle(entry, hourStart) {
       const { event, col, cols } = entry;
       const minutesFromStart = Math.max(0, (event.start.getHours() - hourStart) * 60 + event.start.getMinutes());
       const duration = event.allDay ? 60 : Math.max(42, (event.end - event.start) / 60000);
@@ -863,7 +894,23 @@
         const widthPct = 100 / cols;
         style += `left:calc(${col * widthPct}% + ${gap / 2}px);width:calc(${widthPct}% - ${gap}px);`;
       }
-      return listEventHtml(event, `style="${style}"`);
+      return style;
+    }
+
+    function positionedEventHtml(entry, hourStart) {
+      return listEventHtml(entry.event, `style="${eventPositionStyle(entry, hourStart)}"`);
+    }
+
+    function weekEventChipHtml(entry, hourStart) {
+      const { event, cols } = entry;
+      const style = eventPositionStyle(entry, hourStart);
+      const member = memberFor(event.assignee);
+      const timeLabel = event.allDay ? '終日' : `${formatTime(event.start)}-${formatTime(event.end)}`;
+      const label = cols > 2
+        ? escapeHtml(event.assignee)
+        : `${escapeHtml(event.assignee)} ${event.allDay ? '終日' : formatTime(event.start)}`;
+      const fullInfo = `${event.assignee} ${timeLabel} ${event.title}`;
+      return `<article class="event chip ${member.key}" style="${style}" title="${escapeHtml(fullInfo)}">${label}</article>`;
     }
 
     function renderMonth() {
@@ -1060,4 +1107,3 @@
   </script>
 </body>
 </html>
- 
