@@ -215,7 +215,7 @@
     .hours { background: #fffafd; border-right: 1px solid var(--line); }
     .hour, .slot { min-height: 64px; border-bottom: 1px solid #edf0e8; }
     .hour { color: var(--muted); font-size: 12px; padding: 8px; text-align: right; }
-    .timeline { position: relative; min-height: 576px; padding: 0 8px; box-sizing: border-box; }
+    .timeline { position: relative; min-height: 896px; padding: 0 8px; box-sizing: border-box; }
 
     .all-day-row {
       display: flex;
@@ -536,7 +536,7 @@
 
     const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
     const DAY_HOUR_START = 9;
-    const DAY_HOUR_COUNT = 9;
+    const DAY_HOUR_COUNT = 14;
     const CONFIG_KEY = 'cafeYoshinoCalendarConfigV2';
     const AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
     const APP_TODAY = startOfDay(new Date());
